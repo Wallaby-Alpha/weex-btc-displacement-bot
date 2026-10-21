@@ -178,15 +178,18 @@ class WeexClient:
     ) -> Dict[str, Any]:
         """
         Submits market order with attached preset TP and SL.
+        Automatically handles One-Way Mode (retries with positionSide="BOTH" if -1191 occurs).
         """
         cid = client_order_id or f"b-{int(time.time()*1000)}"
         if not cid.startswith("b-"):
             cid = f"b-{cid}"
 
+        eff_pos_side = getattr(self, "position_side_mode", None) or position_side
+
         payload = {
             "symbol": symbol,
             "side": side,
-            "positionSide": position_side,
+            "positionSide": eff_pos_side,
             "type": "MARKET",
             "quantity": str(quantity),
             "newClientOrderId": cid,
@@ -196,8 +199,17 @@ class WeexClient:
             "slWorkingType": "MARK_PRICE"
         }
 
-        logger.info(f"Submitting WEEX Market Order: {side} {quantity} {symbol} (TP: {tp_price}, SL: {sl_price})")
+        logger.info(f"Submitting WEEX Market Order: {side} {quantity} {symbol} (positionSide={eff_pos_side}, TP: {tp_price}, SL: {sl_price})")
         status, data = self.request("POST", "/capi/v3/order", body=payload)
+
+        # Handle -1191: "Business precondition not satisfied" (One-Way Mode requires positionSide="BOTH")
+        code_str = str(data.get("code")) if isinstance(data, dict) else ""
+        if status >= 400 and code_str in ("-1191", "1191") and eff_pos_side != "BOTH":
+            logger.warning(f"Got -1191 (One-Way Mode detected on WEEX account). Retrying with positionSide='BOTH'...")
+            self.position_side_mode = "BOTH"
+            payload["positionSide"] = "BOTH"
+            payload["newClientOrderId"] = f"{cid}-both"
+            status, data = self.request("POST", "/capi/v3/order", body=payload)
         
         if status == 200 and isinstance(data, dict) and (data.get("success") or data.get("orderId")):
             return {
@@ -220,16 +232,24 @@ class WeexClient:
         Closes position by submitting opposing market order.
         """
         cid = f"b-close-{int(time.time()*1000)}"
+        eff_pos_side = getattr(self, "position_side_mode", None) or position_side
+
         payload = {
             "symbol": symbol,
             "side": side,  # 'SELL' to close LONG, 'BUY' to close SHORT
-            "positionSide": position_side,
+            "positionSide": eff_pos_side,
             "type": "MARKET",
             "quantity": str(quantity),
             "newClientOrderId": cid
         }
-        logger.info(f"Submitting Market Close: {side} {quantity} {symbol} for {position_side} position")
+        logger.info(f"Submitting Market Close: {side} {quantity} {symbol} for positionSide={eff_pos_side}")
         status, data = self.request("POST", "/capi/v3/order", body=payload)
+        code_str = str(data.get("code")) if isinstance(data, dict) else ""
+        if status >= 400 and code_str in ("-1191", "1191") and eff_pos_side != "BOTH":
+            self.position_side_mode = "BOTH"
+            payload["positionSide"] = "BOTH"
+            status, data = self.request("POST", "/capi/v3/order", body=payload)
+
         return status == 200
 
     def place_native_tpsl_plan_order(
@@ -237,7 +257,7 @@ class WeexClient:
         symbol: str,
         plan_type: str,  # 'TAKE_PROFIT' or 'STOP_LOSS'
         trigger_price: float,
-        position_side: str,  # 'LONG' or 'SHORT'
+        position_side: str,  # 'LONG', 'SHORT', or 'BOTH'
         trigger_price_type: str = "CONTRACT_PRICE"
     ) -> bool:
         """
@@ -245,18 +265,26 @@ class WeexClient:
         Using quantity: '0' creates native whole-position protection directly on the exchange.
         """
         cid = f"b-plan-{plan_type[:2].lower()}-{int(time.time()*1000)}"
+        eff_pos_side = getattr(self, "position_side_mode", None) or position_side
+
         payload = {
             "symbol": symbol,
             "clientAlgoId": cid,
             "planType": plan_type,
             "triggerPrice": str(trigger_price),
-            "positionSide": position_side,
+            "positionSide": eff_pos_side,
             "executePrice": "0",  # Market execution upon trigger
             "quantity": "0",      # 0 = Dynamic whole-position protection on WEEX
             "triggerPriceType": trigger_price_type
         }
-        logger.info(f"Submitting WEEX Native Plan Order: {plan_type} @ {trigger_price} ({position_side})")
+        logger.info(f"Submitting WEEX Native Plan Order: {plan_type} @ {trigger_price} ({eff_pos_side})")
         status, data = self.request("POST", "/capi/v3/placeTpSlOrder", body=payload)
+        code_str = str(data.get("code")) if isinstance(data, dict) else ""
+        if status >= 400 and code_str in ("-1191", "1191") and eff_pos_side != "BOTH":
+            self.position_side_mode = "BOTH"
+            payload["positionSide"] = "BOTH"
+            status, data = self.request("POST", "/capi/v3/placeTpSlOrder", body=payload)
+
         item = data[0] if isinstance(data, list) else data
         success = status == 200 and isinstance(item, dict) and bool(item.get("success") or item.get("orderId"))
         if success:

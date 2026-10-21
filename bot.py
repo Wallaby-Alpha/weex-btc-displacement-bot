@@ -25,6 +25,7 @@ class WEEXDisplacementBot:
             passphrase=config.passphrase,
             base_url=config.base_url
         )
+        self.client.position_side_mode = config.position_mode
         self.symbol = config.symbol
         self.symbol_meta: Optional[Dict[str, Any]] = None
         
