@@ -35,7 +35,7 @@ class BotConfig:
     log_level: str = os.getenv("LOG_LEVEL", "INFO")
 
     def __post_init__(self):
-        raw_sessions = os.getenv("SESSIONS", "08:03,16:03,00:03")
+        raw_sessions = os.getenv("SESSIONS", "08:03,13:33,16:03,00:03")
         self.target_sessions = [s.strip() for s in raw_sessions.split(",") if s.strip()]
 
 config = BotConfig()

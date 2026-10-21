@@ -3,7 +3,11 @@
 Automated quantitative execution bot for **BTC/USDT** perpetual contracts on WEEX V3, designed to capture institutional continuation momentum off key market liquidity gates.
 
 ## Strategy Summary
-* **Target Windows (UTC):** `08:03 UTC` (London Cash Open), `16:03 UTC` (European Close / US Fix), `00:03 UTC` (Daily Open / Asia).
+* **Target Windows (UTC):**
+  * `08:03 UTC` (London Cash Open + 8h Funding)
+  * `13:33 UTC` (New York Cash Open / NYO)
+  * `16:03 UTC` (European Close / US Midday + 8h Funding)
+  * `00:03 UTC` (Daily 1D Open / Asia + 8h Funding)
 * **Scan Window:** 30 minutes from each session start.
 * **Trade Limit:** Max 1 trade per session window.
 * **Displacement Rule:** 1-minute candle body $\ge 1.5 \times \text{ATR}(14)$ with body comprising $\ge 65\%$ of total candle range.
