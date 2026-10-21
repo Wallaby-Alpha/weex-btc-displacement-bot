@@ -240,13 +240,11 @@ class WEEXDisplacementBot:
             return
 
         # Live Order Submission
-        res = self.client.place_market_order_with_tpsl(
+        res = self.client.place_market_order(
             symbol=self.symbol,
             side=order_params["side"],
             position_side=order_params["position_side"],
-            quantity=order_params["quantity"],
-            tp_price=order_params["tp_price"],
-            sl_price=order_params["sl_price"]
+            quantity=order_params["quantity"]
         )
 
         if res.get("success"):

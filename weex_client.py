@@ -176,9 +176,16 @@ class WeexClient:
         sl_price: float,
         client_order_id: Optional[str] = None
     ) -> Dict[str, Any]:
+    def place_market_order(
+        self,
+        symbol: str,
+        side: str,  # 'BUY' or 'SELL'
+        position_side: str,  # 'LONG', 'SHORT', or 'BOTH'
+        quantity: float,
+        client_order_id: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
-        Submits market order with attached preset TP and SL.
-        Automatically handles One-Way Mode (retries with positionSide="BOTH" if -1191 occurs).
+        Submits clean market entry order to WEEX matching engine.
         """
         cid = client_order_id or f"b-{int(time.time()*1000)}"
         if not cid.startswith("b-"):
@@ -192,14 +199,10 @@ class WeexClient:
             "positionSide": eff_pos_side,
             "type": "MARKET",
             "quantity": str(quantity),
-            "newClientOrderId": cid,
-            "tpTriggerPrice": str(tp_price),
-            "tpWorkingType": "MARK_PRICE",
-            "slTriggerPrice": str(sl_price),
-            "slWorkingType": "MARK_PRICE"
+            "newClientOrderId": cid
         }
 
-        logger.info(f"Submitting WEEX Market Order: {side} {quantity} {symbol} (positionSide={eff_pos_side}, TP: {tp_price}, SL: {sl_price})")
+        logger.info(f"Submitting WEEX Market Order: {side} {quantity} {symbol} (positionSide={eff_pos_side})")
         status, data = self.request("POST", "/capi/v3/order", body=payload)
 
         # Handle -1191: "Business precondition not satisfied" (One-Way Mode requires positionSide="BOTH")
@@ -226,6 +229,10 @@ class WeexClient:
             "error": err_msg,
             "status": status
         }
+
+    # Backward compatibility alias
+    def place_market_order_with_tpsl(self, symbol, side, position_side, quantity, tp_price=None, sl_price=None, client_order_id=None):
+        return self.place_market_order(symbol, side, position_side, quantity, client_order_id)
 
     def close_market_position(self, symbol: str, side: str, position_side: str, quantity: float) -> bool:
         """
