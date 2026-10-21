@@ -117,7 +117,7 @@ Press `Ctrl + O` then `Enter` to save, and `Ctrl + X` to exit.
 Verify that your droplet can communicate with WEEX and authenticate your keys:
 
 ```bash
-python3 test_connection.py
+./venv/bin/python test_connection.py
 ```
 
 You should see:
