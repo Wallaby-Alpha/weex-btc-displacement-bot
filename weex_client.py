@@ -166,16 +166,6 @@ class WeexClient:
                 })
         return active
 
-    def place_market_order_with_tpsl(
-        self,
-        symbol: str,
-        side: str,  # 'BUY' or 'SELL'
-        position_side: str,  # 'LONG' or 'SHORT'
-        quantity: float,
-        tp_price: float,
-        sl_price: float,
-        client_order_id: Optional[str] = None
-    ) -> Dict[str, Any]:
     def place_market_order(
         self,
         symbol: str,
