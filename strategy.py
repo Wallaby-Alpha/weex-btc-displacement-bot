@@ -101,10 +101,13 @@ class DisplacementStrategy:
         atr: float,
         dollar_risk: float,
         reward_risk_ratio: float,
-        symbol_meta: Dict[str, Any]
+        symbol_meta: Dict[str, Any],
+        available_margin: Optional[float] = None,
+        leverage: int = 20
     ) -> Dict[str, Any]:
         """
         Calculates exact quantity for fixed $1 dollar risk, and rounds TP/SL to exchange precision.
+        Caps quantity safely within available margin to prevent order rejections.
         """
         risk_points = round(atr, symbol_meta.get("pricePrecision", 1))
         if risk_points <= 0:
@@ -116,6 +119,12 @@ class DisplacementStrategy:
         raw_quantity = dollar_risk / risk_points
         qty_prec = symbol_meta.get("quantityPrecision", 4)
         min_qty = symbol_meta.get("minOrderSize", 0.0001)
+
+        # Cap by available margin if provided (use 85% of margin as safe buffer)
+        if available_margin is not None and available_margin > 0 and entry_price > 0:
+            max_allowed_qty = (available_margin * leverage * 0.85) / entry_price
+            if raw_quantity > max_allowed_qty:
+                raw_quantity = max(max_allowed_qty, min_qty)
 
         quantity = round(raw_quantity, qty_prec)
         if quantity < min_qty:

@@ -209,13 +209,16 @@ class WEEXDisplacementBot:
         entry_price = closed_candle["close"]
         logger.info(f"*** [{direction} DISPLACEMENT CONFIRMED] *** at {entry_price} (ATR: {atr:.1f})")
 
+        avail_margin = self.client.get_available_margin()
         order_params = DisplacementStrategy.calculate_order_parameters(
             direction=direction,
             entry_price=entry_price,
             atr=atr,
             dollar_risk=config.dollar_risk,
             reward_risk_ratio=config.reward_risk_ratio,
-            symbol_meta=self.symbol_meta
+            symbol_meta=self.symbol_meta,
+            available_margin=avail_margin,
+            leverage=config.leverage
         )
 
         logger.info(

@@ -33,9 +33,11 @@ class WeexClient:
     def request(self, method: str, path: str, body: Optional[Dict[str, Any]] = None, is_public: bool = False, timeout: int = 10) -> Tuple[int, Any]:
         url = self.base_url + path
         timestamp = str(int(time.time() * 1000))
-        body_str = json.dumps(body) if (method.upper() not in ["GET", "DELETE"] and body is not None) else ""
+        body_str = json.dumps(body, separators=(',', ':')) if (method.upper() not in ["GET", "DELETE"] and body is not None) else ""
 
-        headers = {}
+        headers = {
+            "Content-Type": "application/json"
+        }
         if not is_public:
             if not self.api_key or not self.api_secret:
                 raise ValueError("API Key and Secret must be provided for private endpoints.")
@@ -170,22 +172,24 @@ class WeexClient:
         self,
         symbol: str,
         side: str,  # 'BUY' or 'SELL'
-        position_side: str,  # 'LONG', 'SHORT', or 'BOTH'
+        position_side: str,  # 'LONG' or 'SHORT'
         quantity: float,
         client_order_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Submits clean market entry order to WEEX matching engine.
+        WEEX V3 Contract API strictly requires positionSide to be 'LONG' or 'SHORT'.
         """
         cid = client_order_id or f"b-{int(time.time()*1000)}"
         if not cid.startswith("b-"):
             cid = f"b-{cid}"
 
-        eff_pos_side = getattr(self, "position_side_mode", None) or position_side
+        # In WEEX V3 Contract API, positionSide is strictly 'LONG' or 'SHORT'
+        eff_pos_side = position_side if position_side in ("LONG", "SHORT") else ("LONG" if side.upper() == "BUY" else "SHORT")
 
         payload = {
             "symbol": symbol,
-            "side": side,
+            "side": side.upper(),
             "positionSide": eff_pos_side,
             "type": "MARKET",
             "quantity": str(quantity),
@@ -194,15 +198,6 @@ class WeexClient:
 
         logger.info(f"Submitting WEEX Market Order: {side} {quantity} {symbol} (positionSide={eff_pos_side})")
         status, data = self.request("POST", "/capi/v3/order", body=payload)
-
-        # Handle -1191: "Business precondition not satisfied" (One-Way Mode requires positionSide="BOTH")
-        code_str = str(data.get("code")) if isinstance(data, dict) else ""
-        if status >= 400 and code_str in ("-1191", "1191") and eff_pos_side != "BOTH":
-            logger.warning(f"Got -1191 (One-Way Mode detected on WEEX account). Retrying with positionSide='BOTH'...")
-            self.position_side_mode = "BOTH"
-            payload["positionSide"] = "BOTH"
-            payload["newClientOrderId"] = f"{cid}-both"
-            status, data = self.request("POST", "/capi/v3/order", body=payload)
         
         if status == 200 and isinstance(data, dict) and (data.get("success") or data.get("orderId")):
             return {
@@ -229,11 +224,11 @@ class WeexClient:
         Closes position by submitting opposing market order.
         """
         cid = f"b-close-{int(time.time()*1000)}"
-        eff_pos_side = getattr(self, "position_side_mode", None) or position_side
+        eff_pos_side = position_side if position_side in ("LONG", "SHORT") else ("LONG" if side.upper() == "SELL" else "SHORT")
 
         payload = {
             "symbol": symbol,
-            "side": side,  # 'SELL' to close LONG, 'BUY' to close SHORT
+            "side": side.upper(),
             "positionSide": eff_pos_side,
             "type": "MARKET",
             "quantity": str(quantity),
@@ -241,12 +236,6 @@ class WeexClient:
         }
         logger.info(f"Submitting Market Close: {side} {quantity} {symbol} for positionSide={eff_pos_side}")
         status, data = self.request("POST", "/capi/v3/order", body=payload)
-        code_str = str(data.get("code")) if isinstance(data, dict) else ""
-        if status >= 400 and code_str in ("-1191", "1191") and eff_pos_side != "BOTH":
-            self.position_side_mode = "BOTH"
-            payload["positionSide"] = "BOTH"
-            status, data = self.request("POST", "/capi/v3/order", body=payload)
-
         return status == 200
 
     def place_native_tpsl_plan_order(
@@ -254,7 +243,7 @@ class WeexClient:
         symbol: str,
         plan_type: str,  # 'TAKE_PROFIT' or 'STOP_LOSS'
         trigger_price: float,
-        position_side: str,  # 'LONG', 'SHORT', or 'BOTH'
+        position_side: str,  # 'LONG' or 'SHORT'
         trigger_price_type: str = "CONTRACT_PRICE"
     ) -> bool:
         """
@@ -262,7 +251,7 @@ class WeexClient:
         Using quantity: '0' creates native whole-position protection directly on the exchange.
         """
         cid = f"b-plan-{plan_type[:2].lower()}-{int(time.time()*1000)}"
-        eff_pos_side = getattr(self, "position_side_mode", None) or position_side
+        eff_pos_side = position_side if position_side in ("LONG", "SHORT") else "LONG"
 
         payload = {
             "symbol": symbol,
@@ -276,12 +265,6 @@ class WeexClient:
         }
         logger.info(f"Submitting WEEX Native Plan Order: {plan_type} @ {trigger_price} ({eff_pos_side})")
         status, data = self.request("POST", "/capi/v3/placeTpSlOrder", body=payload)
-        code_str = str(data.get("code")) if isinstance(data, dict) else ""
-        if status >= 400 and code_str in ("-1191", "1191") and eff_pos_side != "BOTH":
-            self.position_side_mode = "BOTH"
-            payload["positionSide"] = "BOTH"
-            status, data = self.request("POST", "/capi/v3/placeTpSlOrder", body=payload)
-
         item = data[0] if isinstance(data, list) else data
         success = status == 200 and isinstance(item, dict) and bool(item.get("success") or item.get("orderId"))
         if success:

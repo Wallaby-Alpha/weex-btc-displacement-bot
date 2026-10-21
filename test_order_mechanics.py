@@ -68,7 +68,7 @@ def run_test():
     entry_res = client.place_market_order(
         symbol=config.symbol,
         side="BUY",
-        position_side=client.position_side_mode,
+        position_side="LONG",
         quantity=test_qty
     )
     
@@ -89,7 +89,7 @@ def run_test():
         symbol=config.symbol,
         plan_type="STOP_LOSS",
         trigger_price=test_sl,
-        position_side=client.position_side_mode
+        position_side="LONG"
     )
     if sl_ok:
         print(f"    [SUCCESS] Native Stop Loss Registered @ ${test_sl}")
@@ -102,7 +102,7 @@ def run_test():
         symbol=config.symbol,
         plan_type="TAKE_PROFIT",
         trigger_price=test_tp,
-        position_side=client.position_side_mode
+        position_side="LONG"
     )
     if tp_ok:
         print(f"    [SUCCESS] Native Take Profit Registered @ ${test_tp}")
@@ -125,7 +125,7 @@ def run_test():
         close_ok = client.close_market_position(
             symbol=config.symbol,
             side="SELL",
-            position_side=client.position_side_mode,
+            position_side="LONG",
             quantity=found_pos["size"]
         )
         if close_ok:

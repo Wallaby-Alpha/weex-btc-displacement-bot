@@ -16,7 +16,7 @@ class BotConfig:
     # Contract Specifications
     symbol: str = os.getenv("SYMBOL", "BTCUSDT")
     leverage: int = int(os.getenv("LEVERAGE", "20"))
-    position_mode: str = os.getenv("POSITION_MODE", "BOTH").upper()  # 'BOTH' for One-Way Mode, 'LONG'/'SHORT' for Hedge Mode
+    position_mode: str = os.getenv("POSITION_MODE", "LONG").upper()  # WEEX V3 requires 'LONG' or 'SHORT'
     
     # Risk & Strategy Parameters
     dollar_risk: float = float(os.getenv("DOLLAR_RISK", "1.00"))  # $1 fixed risk per trade
