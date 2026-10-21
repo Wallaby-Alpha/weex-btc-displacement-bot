@@ -250,6 +250,22 @@ class WEEXDisplacementBot:
 
         if res.get("success"):
             logger.info(f"[+] Live Order Placed Successfully! OrderId: {res.get('orderId')}")
+            
+            # Establish native whole-position Stop Loss and Take Profit on WEEX matching engine
+            time.sleep(0.5)
+            self.client.place_native_tpsl_plan_order(
+                symbol=self.symbol,
+                plan_type="STOP_LOSS",
+                trigger_price=order_params["sl_price"],
+                position_side=order_params["position_side"]
+            )
+            self.client.place_native_tpsl_plan_order(
+                symbol=self.symbol,
+                plan_type="TAKE_PROFIT",
+                trigger_price=order_params["tp_price"],
+                position_side=order_params["position_side"]
+            )
+
             self.active_trade = {
                 "order_id": res.get("orderId"),
                 "side": order_params["side"],
