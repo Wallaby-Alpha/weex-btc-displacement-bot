@@ -31,7 +31,7 @@ class DisplacementStrategy:
     def evaluate_displacement(
         candle: Dict[str, Any],
         atr: float,
-        k_atr: float = 1.5,
+        k_atr: float = 1.2,
         min_body_ratio: float = 0.65,
         wick_tol: float = 0.25
     ) -> Optional[str]:

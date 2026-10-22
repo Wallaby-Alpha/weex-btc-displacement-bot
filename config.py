@@ -22,7 +22,7 @@ class BotConfig:
     dollar_risk: float = float(os.getenv("DOLLAR_RISK", "1.00"))  # $1 fixed risk per trade
     reward_risk_ratio: float = float(os.getenv("REWARD_RISK_RATIO", "1.5"))  # 1.5:1 TP
     atr_period: int = int(os.getenv("ATR_PERIOD", "14"))
-    k_atr: float = float(os.getenv("K_ATR", "1.5"))  # Candle body >= 1.5x ATR
+    k_atr: float = float(os.getenv("K_ATR", "1.2"))  # Candle body >= 1.2x ATR
     min_body_ratio: float = float(os.getenv("MIN_BODY_RATIO", "0.65"))  # Body >= 65% of Range
     
     # Timing & Execution Schedule (UTC)
